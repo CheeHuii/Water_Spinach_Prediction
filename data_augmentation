@@ -1,0 +1,52 @@
+import os
+import cv2
+import numpy as np
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tqdm import tqdm
+
+# Paths
+input_dir = 'water_spinach_dataset'       # Your original dataset
+output_dir = 'augmented_dataset'          # Output folder for augmented dataset
+
+# Define the augmentation configuration
+augmentations = ImageDataGenerator(
+    rotation_range=20,
+    width_shift_range=0.1,
+    height_shift_range=0.1,
+    shear_range=0.1,
+    zoom_range=0.2,
+    horizontal_flip=True,
+    fill_mode='nearest'
+)
+
+# Number of augmented images per original
+augment_count = 4
+
+# Create output directories and save augmented images
+for class_name in os.listdir(input_dir):
+    class_path = os.path.join(input_dir, class_name)
+    output_class_path = os.path.join(output_dir, class_name)
+    os.makedirs(output_class_path, exist_ok=True)
+    
+    if not os.path.isdir(class_path):
+        continue
+
+    for img_name in tqdm(os.listdir(class_path), desc=f'Augmenting {class_name}'):
+        img_path = os.path.join(class_path, img_name)
+        img = cv2.imread(img_path)
+        if img is None:
+            continue
+        img = cv2.resize(img, (224, 224))
+        x = np.expand_dims(img, axis=0)
+        gen = augmentations.flow(x, batch_size=1)
+
+        # Save original
+        cv2.imwrite(os.path.join(output_class_path, f"original_{img_name}"), img)
+        # Save augmented
+        for i in range(augment_count):
+            aug_img = next(gen)[0].astype(np.uint8)
+            aug_name = f"{os.path.splitext(img_name)[0]}_aug_{i}.jpg"
+            cv2.imwrite(os.path.join(output_class_path, aug_name), aug_img)
+
+
+print("Augmented dataset saved to:", output_dir)
